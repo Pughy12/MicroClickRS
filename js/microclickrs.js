@@ -165,8 +165,8 @@ function onLoadFinish() {
         watchRestart();
     });
 
-    for (var index in orderedTrees) {
-        const treeIndex = parseInt(index);
+    for (var index = 0; index < orderedTrees.length; index++) {
+        const treeIndex = index;
         const tree = orderedTrees[treeIndex];
 
         console.log(tree);
