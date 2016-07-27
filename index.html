@@ -1,0 +1,38 @@
+<html>
+    <head>
+        <title>Lojko Hunter</title>
+        
+        <meta property="og:title" content="Lojko Hunter">
+        <meta property="og:site_name" content="Lojko Hunter">
+        <meta property="og:url" content="http://www.jumbledjargon.website/lojkohunter/">
+        <meta property="og:description" content="Lojko is loose around the office again...">
+        <meta property="og:type" content="website">
+        <meta property="og:image" content="http://www.jumbledjargon.website/lojkohunter/img/share-img.jpg" />
+        <script src="https://code.createjs.com/createjs-2015.11.26.min.js"></script>
+        <script src="js/lojkohunter.js"></script>
+        <style>
+            html, body {
+                padding: 0;
+                margin: 0;
+                height: 100%;
+                width: 100%;
+                background-color: #000;
+            }
+            #container {
+                position: relative;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+            #game {
+                position: relative;
+                max-width: 100%;
+                max-height: 100%;
+            }
+        </style>
+    </head>
+    <body onload="init();">
+        <div id="container">
+            <canvas id="game" width="1920" height="1080"></canvas>
+        </div>
+    </body>
+</html>
