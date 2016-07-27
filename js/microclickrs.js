@@ -36,19 +36,39 @@ var progressText;
 // Start game button.
 var startGame;
 
-/* Useful constants and globals. */
+var Trees = {
+    NORMAL: {
+        model: new Tree("tree-1", 2, 2, 1000, 25)
+    },
+    OAK: {
+        model: new Tree("tree-2", 4, 4, 2000, 50)
+    },
+    WILLOW: {
+        model: new Tree("tree-3", 8, 8, 10000, 150)
+    },
+    YEW: {
+        model: new Tree("tree-4", 16, 16, 20000, 250)
+    }
+};
+
+var orderedTrees = [
+    Trees.NORMAL,
+    Trees.OAK,
+    Trees.WILLOW,
+    Trees.YEW
+];
 
 // Used to preload assets.
 var LOAD_MANIFEST = [
-    {src: "img/tree-1.png", id: "tree-1"},
-    {src: "img/tree-2.png", id: "tree-2"},
-    {src: "img/tree-3.png", id: "tree-3"},
-    {src: "img/tree-4.png", id: "tree-4"}
+    {src: "img/tree-1.png", id: Trees.NORMAL.model.name},
+    {src: "img/tree-2.png", id: Trees.OAK.model.name},
+    {src: "img/tree-3.png", id: Trees.WILLOW.model.name},
+    {src: "img/tree-4.png", id: Trees.YEW.model.name}
 ];
 var loader;
 
 var woodcutting = {
-    name: "WoodCutting",
+    name: "Woodcutting",
     exp: 0
 };
 
@@ -58,6 +78,8 @@ var player = {
         woodcutting: woodcutting
     }
 };
+
+var hud;
 
 /**
  *  Initialise loading game objects
@@ -104,7 +126,6 @@ function init() {
     loader.addEventListener("complete", onLoadFinish);
 
     loader.loadManifest(LOAD_MANIFEST);
-
 }
 
 /**
@@ -144,6 +165,48 @@ function onLoadFinish() {
         watchRestart();
     });
 
+    for (var index in orderedTrees) {
+        const treeIndex = parseInt(index);
+        const tree = orderedTrees[treeIndex];
+
+        console.log(tree);
+
+        var image = loader.getResult(tree.model.name);
+
+        var spriteMap = new createjs.SpriteSheet({
+            images: [image],
+            frames: {width: image.width / 2, height: image.height},
+            animations: {
+                idle: 0,
+                break: 1
+            }
+        });
+
+        tree.view = new createjs.Sprite(spriteMap, "idle");
+        tree.view.x = canvas.width / 2;
+        tree.view.y = canvas.height / 2;
+
+        tree.view.on("click", function (event) {
+            tree.model.hit();
+            if (tree.model.isCut()) {
+                tree.view.gotoAndPlay("break");
+                player.skills.woodcutting.exp += tree.model.exp;
+                setTimeout(function () {
+                    tree.model.reset();
+
+                    if (tree.model.isDead()) {
+                        stage.removeChild(tree.view);
+                        var nextIndex = (orderedTrees.length - 1 == treeIndex) ? treeIndex : (treeIndex + 1);
+                        console.log(nextIndex);
+                        stage.addChild(orderedTrees[nextIndex].view);
+                    } else {
+                        tree.view.gotoAndPlay("idle");
+                    }
+                }, tree.model.getRespawnTime());
+            }
+        });
+    }
+
 }
 
 /**
@@ -163,184 +226,15 @@ function watchRestart() {
 
     stage.addChild(background);
 
-    // Add a tree!!!!!
-    var spritesheet = new createjs.SpriteSheet({
-        images: [loader.getResult("tree-1")],
-        frames: {width: 100, height: 160},
-        animations: {
-            idle: 0,
-            broken: 1
-        }
-    });
-
     var hudView = new createjs.Text(player.currentSkill.name + " XP: " + player.currentSkill.exp,
         "bold 50px Arial", "black");
     hudView.x = 10;
     hudView.y = 20;
 
-    var hud = {
-        update: function() {
-            hudView.text = player.currentSkill.name + " XP: " + player.currentSkill.exp;
-        }
-    };
-
-    var treeState = {
-        health: 10,
-        hasDied: false,
-        lives: 10
-    };
-    var tree = new createjs.Sprite(spritesheet, "idle");
-
-    tree.x = canvas.width / 2;
-    tree.y = canvas.height / 2;
-
-    // Cut the tree down, and fall over when health is 0
-    tree.on("click", function(event) {
-
-        if (--treeState.health == 0 && !treeState.hasDied) {
-            treeState.hasDied = true;
-            tree.gotoAndPlay("broken");
-            player.skills.woodcutting.exp += 25;
-            hud.update();
-            treeState.lives--;
-
-            setTimeout(function() {
-                treeState.hasDied = false;
-                treeState.health = 10;
-                tree.gotoAndPlay("idle");
-
-                if (treeState.lives == 0) {
-                    treeState.lives = 10;
-                }
-            }, treeState.lives == 0 ? 10000 : 1000);
-        }
-    });
+    hud = new Hud(player, hudView);
 
     stage.addChild(hudView);
-    stage.addChild(tree);
-
-    // // Lojko.
-    // lojkoAnim = new createjs.SpriteSheet({
-    //     "images": [loader.getResult("spritesheet-lojko")],
-    //     "frames": {width: 384, height: 708},
-    //     "animations": {
-    //         "run" : [0, 3],
-    //         "hit" : [4, 4, "run", 0.5]
-    //     },
-    //     framerate: 2.5
-    // });
-    // createjs.SpriteSheetUtils.addFlippedFrames(lojkoAnim, true, false, false);
-    //
-    // // Foreground.
-    // var foregroundAnim = new createjs.SpriteSheet({
-    //     "images": [loader.getResult("foreground-1"), loader.getResult("foreground-2")],
-    //     "frames": [
-    //         [0, 0, 1920, 1080, 0, 0, 0],
-    //         [0, 0, 1920, 1080, 1, 0, 0]
-    //     ],
-    //     "animations": {
-    //         "idle" : [0, 1]
-    //     },
-    //     framerate: .20
-    // });
-    // foreground = new createjs.Sprite(foregroundAnim, "idle");
-    // stage.addChild(foreground);
-    //
-    // // Progress.
-    // var progressAnim = new createjs.SpriteSheet({
-    //     "images": [loader.getResult("spritesheet-progress")],
-    //     "frames": {width: 504, height: 204, count: 10},
-    //     "animations": {
-    //         "10" : 0,
-    //         "9" : 1,
-    //         "8" : 2,
-    //         "7" : 3,
-    //         "6" : 4,
-    //         "5" : 5,
-    //         "4" : 6,
-    //         "3" : 7,
-    //         "2" : 8,
-    //         "1" : 9,
-    //         "0" : 10
-    //     },
-    //     framerate: 0.40
-    // });
-    // progress = new createjs.Sprite(progressAnim, "10");
-    // progress.x = (stage.canvas.width / 2) - (progress.getBounds().width / 2);
-    // progress.y = stage.canvas.height - (progress.getBounds().height * 1.18);
-    // stage.addChild(progress);
-    //
-    // // Gun.
-    // var gunAnim = new createjs.SpriteSheet({
-    //     "images": [loader.getResult("spritesheet-gun")],
-    //     "frames": {width: 192, height: 564},
-    //     "animations": {
-    //         "aim": 0,
-    //         "reload" : [1, 3, "aim"]
-    //     },
-    //     framerate: 1.65
-    // });
-    // gun = new createjs.Sprite(gunAnim, "aim");
-    // stage.addChild(gun);
-    //
-    // // Bullet.
-    // bulletAnim = new createjs.SpriteSheet({
-    //     "images": [loader.getResult("spritesheet-bullet")],
-    //     "frames": {width: 48, height: 108},
-    //     "animations": {
-    //         "collide" : [1, 3]
-    //     },
-    //     framerate: 2
-    // });
-
-    // Restart (begin) the game.
-    // restart();
-
-}
-
-/**
- *  Reset game loop to
- *  try playing again.
- */
-function restart() {
-
-    // Reset scores.
-    playerScore = 0;
-    playerProgress = 10;
-    numHit = 0;
-    numLojkos = 0;
-    hasFailed = false;
-
-    // Position the cursor correctly.
-    aim({
-        "stageX" : stage.mouseX,
-        "stageY" : stage.mouseY
-    });
-
-    // Hide the cursor.
-    stage.canvas.style.cursor = "none";
-
-    // Play music.
-    if(!isMobile) {
-        createjs.Sound.play("mainloop", {interrupt: createjs.Sound.INTERRUPT_NONE, loop: -1, volume: 0.3});
-    }
-
-    // Add listener to track gun sprite.
-    stage.on("stagemousemove", aim);
-    // Add listener to track shot.
-    stage.on("stagemousedown", shoot);
-    // Add listener to track reload.
-    gun.on("animationend", gunTrigger);
-    // Add listener for user progress.
-    progress.on("change", updateProgress);
-    progress.on("animationend", fail);
-
-    // Allow user to shoot.
-    canShoot = true;
-
-    // Add a Lojko.
-    spawnLojko();
-
+    stage.addChild(Trees.NORMAL.view);
 }
 
 /**
@@ -348,147 +242,9 @@ function restart() {
  *  based on events.
  */
 function tick(event) {
-
+    hud.update();
     // Update the stage.
     stage.update(event);
-
-}
-
-/**
- *  Update the player's aim.
- */
-function aim(event) {
-
-    // Move the player's gun to match the cursor.
-    gun.x = event.stageX - gun.getBounds().width / 2;
-    gun.y = event.stageY - gun.getBounds().height / 15;
-
-}
-
-/**
- *  Play gun shooting and reloading animations.
- */
-function shoot(event) {
-
-    // Prevent redundant clicks...
-    if(canShoot) {
-
-        // Lock this action.
-        canShoot = false;
-
-        // Get the X and Y of the mouse (in case it moves).
-        var localMouseX = stage.mouseX;
-        var localMouseY = stage.mouseY;
-
-        // Check for actual hit.
-        for(let e of stage.getObjectsUnderPoint(localMouseX, localMouseY)) {
-
-            if(e.name == "lojko" && !wasBulletBlocked(localMouseX, localMouseY)) {
-
-                if(!isMobile) {
-                    createjs.Sound.play("lojkohit");
-                }
-
-                // Increment Lojko's hit.
-                numHit++;
-
-                // Stop movement.
-                createjs.Tween.removeTweens(e);
-                // Play hit animation.
-                if(Math.random() > 0.5) {
-                    e.gotoAndPlay("hit");
-                }
-                else {
-                    e.gotoAndPlay("hit_h");
-                }
-            }
-        }
-
-        // Create a bullet drop.
-        spawnBullet(localMouseX, localMouseY);
-
-        // Play the reload animation.
-        gun.gotoAndPlay("reload");
-
-        // Play the shoot/reload sound effect.
-        if(!isMobile) {
-            createjs.Sound.play("reload");
-        }
-
-    }
-
-}
-
-/**
- *  Replenish some of the progress bar.
- */
-function incrementProgress() {
-
-    // Round up to nearest thousand.
-    var nextThousand = Math.ceil(playerScore/1000)*1000;
-
-    // Replenish the progress bar.
-    if(playerProgress > 8) {
-        playerProgress = 10;
-    }
-    else {
-        playerProgress++;
-    }
-
-    progressLock = true;
-    progress.gotoAndPlay(10 - playerProgress);
-
-    // Add to user score.
-    playerScore = playerScore + SCORE_INCREMENT;
-
-    if(playerScore >= nextThousand && !isMobile) {
-        createjs.Sound.play("score");
-    }
-
-}
-
-/**
- *  Handle the player failing
- *  the game by removing listeners
- *  and moving to a fail screen.
- */
-function fail() {
-
-    // Lock asynchronous background operations.
-    hasFailed = true;
-
-    if(!isMobile) {
-        createjs.Sound.stop();
-        createjs.Sound.play("fail");
-    }
-
-    stage.canvas.style.cursor = "default";
-
-    // Remove from stage.
-    stage.removeAllChildren();
-
-    // Add the new background.
-    var failScreen = new createjs.Bitmap(loader.getResult("fail-screen"));
-    stage.addChild(failScreen);
-    stage.update();
-
-    // Add the new score.
-    var finalScoreField = new createjs.Text("Final Score: " + playerScore, "bold 60px Arial", "#3a8944");
-    finalScoreField.maxWidth = 1000;
-    finalScoreField.textAlign = "center";
-    finalScoreField.textBaseline = "middle";
-    finalScoreField.x = 585;
-    finalScoreField.y = 705;
-    stage.addChild(finalScoreField);
-
-    // Add the retry button.
-    var retryButton = new createjs.Bitmap(loader.getResult("retry-button"));
-    retryButton.x = 1180;
-    retryButton.y = 850;
-    stage.addChild(retryButton);
-    retryButton.on("click", watchRestart);
-
-    stage.update();
 
 }
 
@@ -498,3 +254,61 @@ function fail() {
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+function Tree(name, health, lives, respawnMultiplier, exp) {
+    this.name = name;
+    this._health = health;
+    this._currentHealth = health;
+    this._lives = lives;
+    this._currentLives = lives;
+    this._respawnMultiplier = respawnMultiplier;
+    this.exp = exp;
+
+    this.hit = function() {
+
+        if (this._currentHealth > 0) {
+
+            if (--this._currentHealth === 0) {
+                this._currentLives--;
+            }
+        }
+    };
+
+    this.isCut = function() {
+        return this._currentHealth === 0
+    };
+
+    this.isDead = function() {
+        return this._currentLives === 0;
+    };
+
+    this.getRespawnTime = function() {
+        return !this.isDead() ? this._respawnMultiplier : this._respawnMultiplier * this._lives;
+    };
+
+    this.reset = function() {
+        this._currentHealth = this._health;
+    }
+}
+
+function Hud(player, hudView) {
+    this._player = player;
+    this._playerXp = player.currentSkill.exp;
+    this._playerSkill = player.currentSkill.name;
+    this._hudView = hudView;
+
+    this.update = function() {
+
+        if (this._playerSkill != this._player.currentSkill.name || this._playerXp != this._player.currentSkill.exp) {
+            this._hudView.text = this._getPlayerExpLine();
+        }
+    };
+
+    this._getPlayerExpLine = function() {
+        this._playerSkill = this._player.currentSkill.name;
+        this._playerXp = this._player.currentSkill.exp;
+        return this._playerSkill + " XP: " + this._playerXp;
+    }
+
+}
+
