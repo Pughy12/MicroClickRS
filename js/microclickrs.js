@@ -1,13 +1,6 @@
 /**
  * Created by Mike on 27/07/2016.
  */
-/**
- *  Logic for a game inspired by 'Duck Hunt'
- *  that hinges on an in-office joke.
- *
- *  @author  mod_ave
- *  @version 0.6
- */
 
 /* Game objects. */
 
@@ -33,23 +26,87 @@ var progress;
 
 // Progress text asset.
 var progressText;
-// Start game button.
-var startGame;
 
 var Trees = {
     NORMAL: {
-        model: new Tree("tree-1", 2, 2, 1000, 25)
+        name: "tree-1",
+        model: function() {
+            return new Tree(Trees.NORMAL.name, 2, 2, 1000, 25)
+        }
     },
     OAK: {
-        model: new Tree("tree-2", 4, 4, 2000, 50)
+        name: "tree-2",
+        model: function() {
+            return new Tree(Trees.OAK.name, 2, 2, 1000, 50)
+        }
     },
     WILLOW: {
-        model: new Tree("tree-3", 8, 8, 10000, 150)
+        name: "tree-3",
+        model: function() {
+            return new Tree(Trees.WILLOW.name, 2, 2, 1000, 150)
+        }
     },
     YEW: {
-        model: new Tree("tree-4", 16, 16, 20000, 250)
+        name: "tree-4",
+        model: function() {
+            return new Tree(Trees.YEW.name, 2, 2, 1000, 250)
+        }
     }
 };
+
+/**
+ * A resource and view wrapper which fires events when specific events happen to resource
+ *
+ * @param model The model resource to fire events for
+ * @param view The view associated with the model for display
+ * @param stage The stage upon which the view is displayed
+ * @constructor
+ */
+function EventFiringResource(model, view, stage) {
+    this.model = model;
+    this.view = view;
+    this._onDegradeFunc = null;
+    this._onDepleteFunc = null;
+    const me = this;
+
+    this.view.sprite.x = canvas.width / 2;
+    this.view.sprite.y = canvas.height / 2;
+    this.view.sprite.on("click", function() {
+        me.model.interact();
+
+        if (me.model.isDegraded()) {
+            me.view.degradeAnim(stage);
+            //TODO This should probably be handled in an event rather than here.
+            player.currentSkill.favour += me.model.favour;
+
+            if (me._onDegradeFunc != null && typeof(me._onDegradeFunc) !== 'undefined') {
+                me._onDegradeFunc(stage);
+            }
+
+            setTimeout(function () {
+                me.model.reset();
+
+                if (me.model.isDepleted()) {
+                    me.view.depleteAnim(stage);
+
+                    if (me._onDepleteFunc != null && typeof(me._onDepleteFunc) !== 'undefined') {
+                        me._onDepleteFunc(stage);
+                    }
+                } else {
+                    me.view.idleAnim(stage);
+                }
+            }, me.model.getRespawnTime());
+        }
+    });
+
+    this.onDegrade = function(onDegradeFunc) {
+        this._onDegradeFunc = onDegradeFunc;
+    };
+
+    this.onDeplete = function(onDepleteFunc) {
+        this._onDepleteFunc = onDepleteFunc;
+    }
+}
 
 var orderedTrees = [
     Trees.NORMAL,
@@ -60,16 +117,16 @@ var orderedTrees = [
 
 // Used to preload assets.
 var LOAD_MANIFEST = [
-    {src: "img/tree-1.png", id: Trees.NORMAL.model.name},
-    {src: "img/tree-2.png", id: Trees.OAK.model.name},
-    {src: "img/tree-3.png", id: Trees.WILLOW.model.name},
-    {src: "img/tree-4.png", id: Trees.YEW.model.name}
+    {src: "img/tree-1.png", id: Trees.NORMAL.name},
+    {src: "img/tree-2.png", id: Trees.OAK.name},
+    {src: "img/tree-3.png", id: Trees.WILLOW.name},
+    {src: "img/tree-4.png", id: Trees.YEW.name}
 ];
 var loader;
 
 var woodcutting = {
     name: "Woodcutting",
-    exp: 0
+    favour: 0
 };
 
 var player = {
@@ -159,54 +216,63 @@ function onLoadFinish() {
     console.log("HELLO WE DID THE THING");
     stage.update();
 
-    startButton.on("click", function(event) {
-        // Start game timer.
-        createjs.Ticker.on("tick", tick);
-        watchRestart();
-    });
-
     for (var index = 0; index < orderedTrees.length; index++) {
-        const treeIndex = index;
-        const tree = orderedTrees[treeIndex];
+        const tree = orderedTrees[index];
 
         console.log(tree);
 
-        var image = loader.getResult(tree.model.name);
+        var image = loader.getResult(tree.name);
 
-        var spriteMap = new createjs.SpriteSheet({
+        tree.spriteSheet = new createjs.SpriteSheet({
             images: [image],
             frames: {width: image.width / 2, height: image.height},
             animations: {
                 idle: 0,
-                break: 1
-            }
-        });
-
-        tree.view = new createjs.Sprite(spriteMap, "idle");
-        tree.view.x = canvas.width / 2;
-        tree.view.y = canvas.height / 2;
-
-        tree.view.on("click", function (event) {
-            tree.model.hit();
-            if (tree.model.isCut()) {
-                tree.view.gotoAndPlay("break");
-                player.skills.woodcutting.exp += tree.model.exp;
-                setTimeout(function () {
-                    tree.model.reset();
-
-                    if (tree.model.isDead()) {
-                        stage.removeChild(tree.view);
-                        var nextIndex = (orderedTrees.length - 1 == treeIndex) ? treeIndex : (treeIndex + 1);
-                        console.log(nextIndex);
-                        stage.addChild(orderedTrees[nextIndex].view);
-                    } else {
-                        tree.view.gotoAndPlay("idle");
-                    }
-                }, tree.model.getRespawnTime());
+                degrade: 1
             }
         });
     }
 
+    var woodcuttingChain = new ResourceChain(new EventFiringResource(Trees.NORMAL.model(), getTreeView(Trees.NORMAL), stage))
+        .chain(new EventFiringResource(Trees.OAK.model(), getTreeView(Trees.OAK), stage))
+        .chain(new EventFiringResource(Trees.WILLOW.model(), getTreeView(Trees.WILLOW), stage));
+
+    woodcuttingChain.chainForever(function() {
+        return new EventFiringResource(Trees.YEW.model(), getTreeView(Trees.YEW), stage);
+    });
+
+    var gameConfig = {
+        woodcutting : woodcuttingChain
+
+        // farming: [],
+        //
+        // fishing: new ResourceChain(),
+        //
+        // mining: new ResourceChain()
+    };
+
+    startButton.on("click", function(event) {
+        // Start game timer.
+        createjs.Ticker.on("tick", tick);
+        watchRestart(gameConfig);
+    });
+}
+
+/**
+ * Get a tree's view object used to manipulate what animations are played for a tree resource
+ *
+ * @param tree The type of tree to get the view for
+ *
+ * @returns {ResourceView} A resource view to call animations on.
+ */
+function getTreeView(tree) {
+    return new ResourceView(new createjs.Sprite(tree.spriteSheet, "idle"), function(sprite, stage) {
+        sprite.gotoAndPlay("idle");
+    }, function(sprite, stage) {
+        sprite.gotoAndPlay("degrade");
+    }, function(sprite, stage) {
+        stage.removeChild(sprite);
+    });
 }
 
 /**
@@ -214,7 +280,7 @@ function onLoadFinish() {
  *  game; initialises main
  *  game loop.
  */
-function watchRestart() {
+function watchRestart(gameConfig) {
 
     // Remove loading objects.
     stage.removeAllChildren();
@@ -226,7 +292,7 @@ function watchRestart() {
 
     stage.addChild(background);
 
-    var hudView = new createjs.Text(player.currentSkill.name + " XP: " + player.currentSkill.exp,
+    var hudView = new createjs.Text(player.currentSkill.name + " Favour: " + player.currentSkill.favour,
         "bold 50px Arial", "black");
     hudView.x = 10;
     hudView.y = 20;
@@ -234,7 +300,7 @@ function watchRestart() {
     hud = new Hud(player, hudView);
 
     stage.addChild(hudView);
-    stage.addChild(Trees.NORMAL.view);
+    stage.addChild(gameConfig.woodcutting.currentResource.view.sprite);
 }
 
 /**
@@ -255,16 +321,32 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function Tree(name, health, lives, respawnMultiplier, exp) {
+
+/**
+ * A tree object which has the "duck type" of "Resource model" (implementing interact(), isDegraded(), isDepleted(),
+ * getRespawnTime() and reset()
+ *
+ * @param name The name of the tree
+ * @param health The initial health of the tree
+ * @param lives The initial number of lives for the tree
+ * @param respawnMultiplier The multiplier for respawn times (on degrade, this is the time til respawn,
+ *                              on deplete this multiplier is applied to the number of lives)
+ * @param favour The amount of favour a player receives for degrading the tree
+ * @constructor
+ */
+function Tree(name, health, lives, respawnMultiplier, favour) {
     this.name = name;
     this._health = health;
     this._currentHealth = health;
     this._lives = lives;
     this._currentLives = lives;
     this._respawnMultiplier = respawnMultiplier;
-    this.exp = exp;
+    this.favour = favour;
 
-    this.hit = function() {
+    /**
+     * Hit this tree
+     */
+    this.interact = function() {
 
         if (this._currentHealth > 0) {
 
@@ -274,41 +356,178 @@ function Tree(name, health, lives, respawnMultiplier, exp) {
         }
     };
 
-    this.isCut = function() {
+    /**
+     * Is this tree degraded?
+     *
+     * @returns {boolean} true if degraded, false if not
+     */
+    this.isDegraded = function() {
         return this._currentHealth === 0
     };
 
-    this.isDead = function() {
+    /**
+     * Is this tree depleted?
+     *
+     * @returns {boolean} true if depleted, false if not
+     */
+    this.isDepleted = function() {
         return this._currentLives === 0;
     };
 
+    /**
+     * Gets the amount of time to wait before respawning
+     *
+     * @returns {number} The respawn time in milliseconds
+     */
     this.getRespawnTime = function() {
-        return !this.isDead() ? this._respawnMultiplier : this._respawnMultiplier * this._lives;
+        return !this.isDepleted() ? this._respawnMultiplier : this._respawnMultiplier * this._lives;
     };
 
+    /**
+     * Resets this tree after it has been degraded.
+     */
     this.reset = function() {
         this._currentHealth = this._health;
     }
 }
 
+/**
+ * A resource view used to interact directly with a sprite, allowing definition of custom animation routines upon
+ * various events.
+ *
+ * Each animation accepts a function in the form: function(sprite, stage) {}
+ *
+ * @param sprite The sprite to act upon
+ * @param idleAnim The animation for when a resource is idle
+ * @param degradeAnim The animation for when a resource is degraded
+ * @param depleteAnim The animation for when a resource is depleted
+ * @constructor
+ */
+function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim) {
+    this.sprite = sprite;
+
+    /**
+     * Runs the animation for when this resource is idle
+     *
+     * @param stage The stage upon which the animation should run
+     */
+    this.idleAnim = function (stage) {
+
+        if (notNull(idleAnim)) {
+            idleAnim(this.sprite, stage);
+        }
+    };
+
+    /**
+     * Runs the animation for when this resource is degraded
+     *
+     * @param stage The stage upon which the animation should run
+     */
+    this.degradeAnim = function (stage) {
+
+        if (notNull(degradeAnim)) {
+            degradeAnim(this.sprite, stage);
+        }
+    };
+
+    /**
+     * Runs the animation for when this resource is depleted
+     *
+     * @param stage The stage upon which the animation should run
+     */
+    this.depleteAnim = function (stage) {
+
+        if (notNull(depleteAnim)) {
+            depleteAnim(this.sprite, stage);
+        }
+    }
+}
+
+/**
+ * A helpler class allowing resources to be chained with one another. That is, after a resource is depleted,
+ * the next resource in the chain takes its place.
+ *
+ * @param resource The first resource in the chain
+ * @constructor
+ */
+function ResourceChain(resource) {
+    this.currentResource = resource;
+    this._latestResource = resource;
+    const me = this;
+
+    /**
+     * Add a resource to the chain
+     *
+     * @param chainedResource The resource to chain
+     *
+     * @returns {ResourceChain} This chain for fluent chaining
+     */
+    this.chain = function(chainedResource) {
+        this._latestResource.onDeplete(function(stage) {
+            me.currentResource = chainedResource;
+            stage.addChild(chainedResource.view.sprite);
+        });
+        this._latestResource = chainedResource;
+
+        return this;
+    };
+
+    /**
+     * Chains whatever resource is produced from the factory provided forever.
+     *
+     * This should be the final call in a chain, calling chain() after this method will negate this method.
+     *
+     * @param chainedResourceFactory A factory producing a resource
+     */
+    this.chainForever = function(chainedResourceFactory) {
+        this._latestResource.onDeplete(function(stage) {
+            me.currentResource = chainedResourceFactory();
+            me._latestResource = me.currentResource;
+            me.chainForever(chainedResourceFactory);
+            stage.addChild(me.currentResource.view.sprite);
+        });
+    }
+}
+
+/**
+ * The hud for player statistics
+ *
+ * @param player The player information to query
+ * @param hudView The actual view upon which hud information is displayed
+ * @constructor
+ */
 function Hud(player, hudView) {
     this._player = player;
-    this._playerXp = player.currentSkill.exp;
+    this._playerFavour = player.currentSkill.favour;
     this._playerSkill = player.currentSkill.name;
     this._hudView = hudView;
 
+    /**
+     * Update this hud with the correct player information
+     */
     this.update = function() {
 
-        if (this._playerSkill != this._player.currentSkill.name || this._playerXp != this._player.currentSkill.exp) {
+        if (this._playerSkill != this._player.currentSkill.name || this._playerFavour != this._player.currentSkill.favour) {
             this._hudView.text = this._getPlayerExpLine();
         }
     };
 
     this._getPlayerExpLine = function() {
         this._playerSkill = this._player.currentSkill.name;
-        this._playerXp = this._player.currentSkill.exp;
-        return this._playerSkill + " XP: " + this._playerXp;
+        this._playerFavour = this._player.currentSkill.favour;
+        return this._playerSkill + " Favour: " + this._playerFavour;
     }
 
+}
+
+/**
+ * Determines if the object provided is not null
+ *
+ * @param obj The object to check
+ *
+ * @returns {boolean} true if null or undefined, false if not
+ */
+function notNull(obj) {
+    return (obj != null) && (typeof(obj) !== 'undefined');
 }
 
