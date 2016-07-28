@@ -62,6 +62,7 @@ function EventFiringResource(model, view, stage) {
             },
             deplete: function() {
                 me.view.depleteAnim(stage);
+                player.currentSkill.favour += me.model.favour;
 
                 setTimeout(function () {
 
