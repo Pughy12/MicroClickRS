@@ -1,27 +1,35 @@
 
 function getFarmingManifest() {
     return [
+        {src: "img/herb-1.png", id: StandardHerb.MARENTILL.id},
+        {src: "img/herb-2.png", id: StandardHerb.RANARR.id},
+        {src: "img/herb-3.png", id: StandardHerb.SNAPDRAGON.id},
+        {src: "img/herb-4.png", id: StandardHerb.DWARF_WEED.id},
         {src: "img/herb-patch.png", id: "herb-patch"}
     ];
 }
 
 var StandardHerb = {
     MARENTILL: {
+        id: "herb-1",
         model: function() {
             return new Herb("Marentill", 5, 1000, 25, 1000);
         }
     },
     RANARR: {
+        id: "herb-2",
         model: function() {
             return new Herb("Ranarr", 5, 1000, 25, 1000);
         }
     },
     SNAPDRAGON: {
+        id: "herb-3",
         model: function() {
             return new Herb("Snapdragon", 5, 1000, 25, 1000);
         }
     },
     DWARF_WEED: {
+        id: "herb-4",
         model: function() {
             return new Herb("Dwarf Weed", 5, 1000, 25, 1000);
         }

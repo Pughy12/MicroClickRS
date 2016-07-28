@@ -5,37 +5,38 @@
  */
 function getWoodcuttingManifest() {
     return [
-        {src: "img/tree-1.png", id: StandardTree.NORMAL.name},
-        {src: "img/tree-2.png", id: StandardTree.OAK.name},
-        {src: "img/tree-3.png", id: StandardTree.WILLOW.name},
-        {src: "img/tree-4.png", id: StandardTree.YEW.name}
+        {src: "img/tree-1.png", id: StandardTree.NORMAL.id},
+        {src: "img/tree-2.png", id: StandardTree.OAK.id},
+        {src: "img/tree-3.png", id: StandardTree.WILLOW.id},
+        {src: "img/tree-4.png", id: StandardTree.YEW.id},
+        {src: "img/leaf.png", id: "leaf"}
     ];
 }
 
 
 var StandardTree = {
     NORMAL: {
-        name: "tree-1",
+        id: "tree-1",
         model: function() {
-            return new Tree(StandardTree.NORMAL.name, 2, 2, 1000, 25)
+            return new Tree("Normal", 2, 2, 1000, 25)
         }
     },
     OAK: {
-        name: "tree-2",
+        id: "tree-2",
         model: function() {
-            return new Tree(StandardTree.OAK.name, 2, 2, 1000, 50)
+            return new Tree("Oak", 2, 2, 1000, 50)
         }
     },
     WILLOW: {
-        name: "tree-3",
+        id: "tree-3",
         model: function() {
-            return new Tree(StandardTree.WILLOW.name, 2, 2, 1000, 150)
+            return new Tree("Willow", 2, 2, 1000, 150)
         }
     },
     YEW: {
-        name: "tree-4",
+        id: "tree-4",
         model: function() {
-            return new Tree(StandardTree.YEW.name, 2, 2, 1000, 250)
+            return new Tree("Yew", 2, 2, 1000, 250)
         }
     }
 };
@@ -53,7 +54,7 @@ function getWoodcuttingScreen(loader) {
     for (var i = 0; i < orderedTrees.length; i++) {
         const tree = orderedTrees[i];
 
-        var image = loader.getResult(tree.name);
+        var image = loader.getResult(tree.id);
 
         tree.spriteSheet = new createjs.SpriteSheet({
             images: [image],
