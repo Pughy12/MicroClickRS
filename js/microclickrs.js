@@ -54,6 +54,13 @@ var Trees = {
     }
 };
 
+var orderedTrees = [
+    Trees.NORMAL,
+    Trees.OAK,
+    Trees.WILLOW,
+    Trees.YEW
+];
+
 /**
  * A resource and view wrapper which fires events when specific events happen to resource
  *
@@ -73,6 +80,7 @@ function EventFiringResource(model, view, stage) {
     this.view.sprite.y = canvas.height / 2;
     this.view.sprite.on("click", function() {
         me.model.interact();
+        me.view.interactAnim();
 
         if (me.model.isDegraded()) {
             me.view.degradeAnim(stage);
@@ -108,13 +116,6 @@ function EventFiringResource(model, view, stage) {
     }
 }
 
-var orderedTrees = [
-    Trees.NORMAL,
-    Trees.OAK,
-    Trees.WILLOW,
-    Trees.YEW
-];
-
 // Used to preload assets.
 var LOAD_MANIFEST = [
     {src: "img/tree-1.png", id: Trees.NORMAL.name},
@@ -129,10 +130,28 @@ var woodcutting = {
     favour: 0
 };
 
+var farming = {
+    name: "Farming",
+    favour: 0
+};
+
+var mining = {
+    name: "Mining",
+    favour: 0
+};
+
+var fishing = {
+    name: "Fishing",
+    favour: 0
+};
+
 var player = {
     currentSkill: woodcutting,
     skills: {
-        woodcutting: woodcutting
+        woodcutting: woodcutting,
+        farming: farming,
+        mining: mining,
+        fishing: fishing
     }
 };
 
@@ -216,9 +235,10 @@ function onLoadFinish() {
     console.log("HELLO WE DID THE THING");
     stage.update();
 
-    for (var index = 0; index < orderedTrees.length; index++) {
-        const tree = orderedTrees[index];
+    var woodcuttingChain = new ResourceChain();
 
+    for (var i = 0; i < orderedTrees.length; i++) {
+        const tree = orderedTrees[i];
         console.log(tree);
 
         var image = loader.getResult(tree.name);
@@ -231,15 +251,15 @@ function onLoadFinish() {
                 degrade: 1
             }
         });
+
+        if (i === (orderedTrees.length - 1)) {
+            woodcuttingChain.chainForever(function() {
+               return new EventFiringResource(tree.model(), getTreeView(tree), stage);
+            });
+        } else {
+            woodcuttingChain.chain(new EventFiringResource(tree.model(), getTreeView(tree), stage));
+        }
     }
-
-    var woodcuttingChain = new ResourceChain(new EventFiringResource(Trees.NORMAL.model(), getTreeView(Trees.NORMAL), stage))
-        .chain(new EventFiringResource(Trees.OAK.model(), getTreeView(Trees.OAK), stage))
-        .chain(new EventFiringResource(Trees.WILLOW.model(), getTreeView(Trees.WILLOW), stage));
-
-    woodcuttingChain.chainForever(function() {
-        return new EventFiringResource(Trees.YEW.model(), getTreeView(Trees.YEW), stage);
-    });
 
     var gameConfig = {
         woodcutting : woodcuttingChain
@@ -266,12 +286,14 @@ function onLoadFinish() {
  * @returns {ResourceView} A resource view to call animations on.
  */
 function getTreeView(tree) {
-    return new ResourceView(new createjs.Sprite(tree.spriteSheet, "idle"), function(sprite, stage) {
+    return new ResourceView(new createjs.Sprite(tree.spriteSheet, "idle"), function(sprite, stage) { // Idle
         sprite.gotoAndPlay("idle");
-    }, function(sprite, stage) {
+    }, function(sprite, stage) { // Degrade
         sprite.gotoAndPlay("degrade");
-    }, function(sprite, stage) {
+    }, function(sprite, stage) { // Deplete
         stage.removeChild(sprite);
+    }, function(sprite, stage) { // Interact
+        // TODO Tree wobble/leaf particles?
     });
 }
 
@@ -300,7 +322,7 @@ function watchRestart(gameConfig) {
     hud = new Hud(player, hudView);
 
     stage.addChild(hudView);
-    stage.addChild(gameConfig.woodcutting.currentResource.view.sprite);
+    gameConfig.woodcutting.draw(stage);
 }
 
 /**
@@ -401,9 +423,10 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
  * @param idleAnim The animation for when a resource is idle
  * @param degradeAnim The animation for when a resource is degraded
  * @param depleteAnim The animation for when a resource is depleted
+ * @param interactAnim The animation for when a resource is interacted with
  * @constructor
  */
-function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim) {
+function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) {
     this.sprite = sprite;
 
     /**
@@ -411,7 +434,7 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim) {
      *
      * @param stage The stage upon which the animation should run
      */
-    this.idleAnim = function (stage) {
+    this.idleAnim = function(stage) {
 
         if (notNull(idleAnim)) {
             idleAnim(this.sprite, stage);
@@ -423,7 +446,7 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim) {
      *
      * @param stage The stage upon which the animation should run
      */
-    this.degradeAnim = function (stage) {
+    this.degradeAnim = function(stage) {
 
         if (notNull(degradeAnim)) {
             degradeAnim(this.sprite, stage);
@@ -435,10 +458,17 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim) {
      *
      * @param stage The stage upon which the animation should run
      */
-    this.depleteAnim = function (stage) {
+    this.depleteAnim = function(stage) {
 
         if (notNull(depleteAnim)) {
             depleteAnim(this.sprite, stage);
+        }
+    };
+
+    this.interactAnim = function(stage) {
+
+        if (notNull(interactAnim)) {
+            interactAnim(this.sprite, stage);
         }
     }
 }
@@ -447,12 +477,11 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim) {
  * A helpler class allowing resources to be chained with one another. That is, after a resource is depleted,
  * the next resource in the chain takes its place.
  *
- * @param resource The first resource in the chain
  * @constructor
  */
-function ResourceChain(resource) {
-    this.currentResource = resource;
-    this._latestResource = resource;
+function ResourceChain() {
+    this.currentResource = null;
+    this._latestResource = null;
     const me = this;
 
     /**
@@ -463,11 +492,17 @@ function ResourceChain(resource) {
      * @returns {ResourceChain} This chain for fluent chaining
      */
     this.chain = function(chainedResource) {
-        this._latestResource.onDeplete(function(stage) {
-            me.currentResource = chainedResource;
-            stage.addChild(chainedResource.view.sprite);
-        });
-        this._latestResource = chainedResource;
+
+        if (notNull(this.currentResource)) {
+            this._latestResource.onDeplete(function (stage) {
+                me.currentResource = chainedResource;
+                stage.addChild(chainedResource.view.sprite);
+            });
+            this._latestResource = chainedResource;
+        } else {
+            this.currentResource = chainedResource;
+            this._latestResource = chainedResource;
+        }
 
         return this;
     };
@@ -486,6 +521,15 @@ function ResourceChain(resource) {
             me.chainForever(chainedResourceFactory);
             stage.addChild(me.currentResource.view.sprite);
         });
+    };
+
+    /**
+     * Draws the resource chain onto the stage provided
+     *
+     * @param stage The stage to draw on
+     */
+    this.draw = function(stage) {
+        stage.addChild(this.currentResource.view.sprite);
     }
 }
 
