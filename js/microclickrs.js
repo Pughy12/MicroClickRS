@@ -289,11 +289,11 @@ function onLoadFinish() {
  * @returns {ResourceView} A resource view to call animations on.
  */
 function getTreeView(tree) {
-    var view = new createjs.Sprite(tree.spriteSheet, "idle");
-    view.sprite.x = canvas.width / 2;
-    view.sprite.y = canvas.height / 2;
+    var sprite = new createjs.Sprite(tree.spriteSheet, "idle");
+    sprite.x = canvas.width / 2;
+    sprite.y = canvas.height / 2;
 
-    return new ResourceView(view, function(sprite, stage) { // Idle
+    return new ResourceView(sprite, function(sprite, stage) { // Idle
         sprite.gotoAndPlay("idle");
     }, function(sprite, stage) { // Degrade
         sprite.gotoAndPlay("degrade");
@@ -579,6 +579,7 @@ function ResourceChain() {
      */
     this.chainForever = function(chainedResourceFactory) {
         this._latestResource.onDeplete(function(stage) {
+            stage.removeChild(me.currentResource.view.sprite);
             me.currentResource = chainedResourceFactory();
             me._latestResource = me.currentResource;
             me.chainForever(chainedResourceFactory);
