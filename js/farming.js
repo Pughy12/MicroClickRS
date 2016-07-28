@@ -13,7 +13,7 @@ var StandardHerb = {
     MARENTILL: {
         id: "herb-1",
         model: function() {
-            return new Herb("Marentill", 5, 1000, 25, 1000);
+            return new Herb("Marentill", 5, 1000, 25, 5000);
         }
     },
     RANARR: {
@@ -54,44 +54,67 @@ function getFarmingScreen(loader) {
         console.log("YOU HAVE CLICKED IMAGE LUL");
     });
 
-    // var chains = [new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain()];
-    //
-    // for (var i = 0; i < orderedHerbs.length; i++) {
-    //     const herb = orderedHerbs[i];
-    //
-    //     var image = loader.getResult(herb.name);
-    //
-    //     herb.spriteSheet = new createjs.SpriteSheet({
-    //         images: [image],
-    //         frames: {width: image.width / 4, height: image.height},
-    //         animations: {
-    //             idle: 0,
-    //             degrade: 1
-    //         }
-    //     });
-    //
-    //     for (var chainIndex = 0; chainIndex < chains.length; chainIndex++) {
-    //
-    //         if (i === (orderedHerbs.length - 1)) {
-    //             chains[chainIndex].chainForever(function () {
-    //                 return new EventFiringResource(herb.model(), getTreeView(herb), stage);
-    //             });
-    //         } else {
-    //             chains[chainIndex].chain(new EventFiringResource(herb.model(), getTreeView(herb), stage));
-    //         }
-    //     }
-    // }
+    var chains = [new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain()];
+
+    var xOffset = (herbPatch.image.width / 4);
+    var yOffset = (herbPatch.image.height / 4);
+
+    var coords = [
+        {x: herbPatch.x, y: herbPatch.y},
+        {x: herbPatch.x - xOffset, y: herbPatch.y - yOffset},
+        {x: herbPatch.x + xOffset, y: herbPatch.y - yOffset},
+        {x: herbPatch.x - xOffset, y: herbPatch.y + yOffset},
+        {x: herbPatch.x + xOffset, y: herbPatch.y + yOffset}
+    ];
+
+    for (var i = 0; i < orderedHerbs.length; i++) {
+        const herb = orderedHerbs[i];
+
+        var image = loader.getResult(herb.id);
+        var singleWidth = image.width / 6;
+
+        herb.spriteSheet = new createjs.SpriteSheet({
+            images: [image],
+            frames: {width: singleWidth, height: image.height},
+            animations: {
+                idle: 0,
+                water: 1,
+                grown: 4,
+                grow: [2, 4, "grown", 0.5],
+                die: 5
+            }
+        });
+
+        const regX = singleWidth / 2;
+        const regY = image.height / 2;
+
+        for (var chainIndex = 0; chainIndex < chains.length; chainIndex++) {
+            const coord = coords[chainIndex];
+
+            if (i === (orderedHerbs.length - 1)) {
+                chains[chainIndex].chainForever(function () {
+                    return new EventFiringResource(herb.model(), getHerbView(herb, coord.x, coord.y, regX, regY), stage);
+                });
+            } else {
+                chains[chainIndex].chain(new EventFiringResource(herb.model(), getHerbView(herb, coord.x, coord.y, regX, regY), stage));
+            }
+        }
+    }
 
     return {
         draw: function(stage) {
             stage.addChild(herbPatch);
 
-            // for (var i = 0; i < chains.length; i++) {
-            //     chains[i].draw(stage);
-            // }
+            for (var i = 0; i < chains.length; i++) {
+                chains[i].draw(stage);
+            }
         },
         clear: function(stage) {
             stage.removeChild(herbPatch);
+
+            for (var i = 0; i < chains.length; i++) {
+                chains[i].clear(stage);
+            }
         }
     };
 
@@ -116,7 +139,7 @@ function Herb(name, lives, respawnMultiplier, favour, growTime) {
     this._currentLives = lives;
     this._respawnMultiplier = respawnMultiplier;
     this._growTime = growTime;
-    this.favour = favour;
+    this._favour = favour;
     this._isReady = false;
 
     const me = this;
@@ -163,6 +186,10 @@ function Herb(name, lives, respawnMultiplier, favour, growTime) {
     this.reset = function() {
         this._currentHealth = this._health;
     };
+
+    this.applyFavour = function(player) {
+        player.skills.farming.favour += this._favour;
+    };
 }
 
 /**
@@ -171,21 +198,56 @@ function Herb(name, lives, respawnMultiplier, favour, growTime) {
  * @param herb The type of herb to get the view for
  * @param x The x co-ordinate that this view should start in
  * @param y The y co-ordinate that this view should start in
+ * @param regX The offset for the position of the image
+ * @param regY The offset for the position of the image
  *
  * @returns {ResourceView} A resource view to call animations on.
  */
-function getHerbView(herb, x, y) {
+function getHerbView(herb, x, y, regX, regY) {
     var sprite = new createjs.Sprite(herb.spriteSheet, "idle");
     sprite.x = x;
     sprite.y = y;
+    sprite.regX = regX;
+    sprite.regY = regY;
 
-    return new ResourceView(sprite, function(sprite, stage) { // Idle
+    function idle(sprite, cleared, stage, callback) {
         sprite.gotoAndPlay("idle");
-    }, function(sprite, stage) { // Degrade
-        sprite.gotoAndPlay("degrade");
-    }, function(sprite, stage) { // Deplete
-        sprite.gotoAndPlay("degrade");
-    }, function(sprite, stage, callback) { // Interact
-        sprite.gotoAndPlay("interact");
-    });
+
+        // Reset the sprite's position since we took it off the screen during a harvest
+        sprite.x = x;
+        sprite.y = y;
+
+        if (!cleared) {
+            stage.addChild(sprite);
+        }
+        safeCall(callback);
+    }
+
+    function degrade(sprite, cleared, stage, callback) {
+        createjs.Tween.get(sprite).to({x: -regX, y: -regY}, 2000, createjs.Ease.getElasticInOut(2, 5)).call(function() {
+            stage.removeChild(sprite);
+            safeCall(callback);
+        });
+    }
+
+    function deplete(sprite, cleared, stage, callback) {
+        sprite.gotoAndPlay("die");
+    }
+
+    function interact(sprite, cleared, stage, event, callback) {
+
+        if (notNull(callback)) {
+            sprite.on('animationend', function() {
+                safeCall(callback)
+            }, null, true);
+        }
+
+        if (event.type == eventType.IMMEDIATE) {
+            sprite.gotoAndPlay("water");
+        } else if (event.type == eventType.DELAYED) {
+            sprite.gotoAndPlay("grow");
+        }
+    }
+
+    return new ResourceView(sprite, idle, degrade, deplete, interact);
 }

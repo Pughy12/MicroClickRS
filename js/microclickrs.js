@@ -48,28 +48,30 @@ function EventFiringResource(model, view, stage) {
                 me.view.interactAnim(stage, {type: eventType.DELAYED}, callback)
             },
             degrade: function() {
-                me.view.degradeAnim(stage);
-                player.currentSkill.favour += me.model.favour;
+                me.view.degradeAnim(stage, function() {
+                    me.model.applyFavour(player);
 
-                if (me._onDegradeFunc != null && typeof(me._onDegradeFunc) !== 'undefined') {
-                    me._onDegradeFunc(stage);
-                }
+                    if (me._onDegradeFunc != null && typeof(me._onDegradeFunc) !== 'undefined') {
+                        me._onDegradeFunc(stage);
+                    }
 
-                setTimeout(function() {
-                    me.model.reset();
-                    me.view.idleAnim(stage);
-                }, me.model.getRespawnTime());
+                    setTimeout(function() {
+                        me.model.reset();
+                        me.view.idleAnim(stage);
+                    }, me.model.getRespawnTime());
+                });
             },
             deplete: function() {
-                me.view.depleteAnim(stage);
-                player.currentSkill.favour += me.model.favour;
+                me.view.depleteAnim(stage, function() {
+                    me.model.applyFavour(player);
 
-                setTimeout(function () {
+                    setTimeout(function () {
 
-                    if (me._onDepleteFunc != null && typeof(me._onDepleteFunc) !== 'undefined') {
-                        me._onDepleteFunc(stage);
-                    }
-                }, me.model.getRespawnTime());
+                        if (me._onDepleteFunc != null && typeof(me._onDepleteFunc) !== 'undefined') {
+                            me._onDepleteFunc(stage);
+                        }
+                    }, me.model.getRespawnTime());
+                });
             }
         });
     });
@@ -332,16 +334,18 @@ function getRandomInt(min, max) {
  */
 function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) {
     this.sprite = sprite;
+    this.cleared = false;
 
     /**
      * Runs the animation for when this resource is idle
      *
      * @param stage The stage upon which the animation should run
+     * @param callback
      */
-    this.idleAnim = function(stage) {
+    this.idleAnim = function(stage, callback) {
 
         if (notNull(idleAnim)) {
-            idleAnim(this.sprite, stage);
+            idleAnim(this.sprite, this.cleared, stage, callback);
         }
     };
 
@@ -349,11 +353,12 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) 
      * Runs the animation for when this resource is degraded
      *
      * @param stage The stage upon which the animation should run
+     * @param callback
      */
-    this.degradeAnim = function(stage) {
+    this.degradeAnim = function(stage, callback) {
 
         if (notNull(degradeAnim)) {
-            degradeAnim(this.sprite, stage);
+            degradeAnim(this.sprite, this.cleared, stage, callback);
         }
     };
 
@@ -361,20 +366,21 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) 
      * Runs the animation for when this resource is depleted
      *
      * @param stage The stage upon which the animation should run
+     * @param callback
      */
-    this.depleteAnim = function(stage) {
+    this.depleteAnim = function(stage, callback) {
 
         if (notNull(depleteAnim)) {
-            depleteAnim(this.sprite, stage);
+            depleteAnim(this.sprite, this.cleared, stage, callback);
         }
     };
 
     this.interactAnim = function(stage, event, callback) {
 
         if (notNull(interactAnim)) {
-            interactAnim(this.sprite, stage, event, callback);
+            interactAnim(this.sprite, this.cleared, stage, event, callback);
         }
-    }
+    };
 }
 
 /**
@@ -438,11 +444,13 @@ function ResourceChain() {
     this.draw = function(stage) {
         stage.addChild(this.currentResource.view.sprite);
         this._isCleared = false;
+        this.currentResource.view.cleared = false;
     };
 
     this.clear = function(stage) {
         this._isCleared = true;
         stage.removeChild(this.currentResource.view.sprite);
+        this.currentResource.view.cleared = true;
     };
 
     this._safeDrawCurrent = function() {
@@ -500,5 +508,12 @@ function centerOnScreen(visibleObject, height, width) {
     visibleObject.y = canvas.height / 2;
     visibleObject.regY = height / 2;
     visibleObject.regX = width / 2;
+}
+
+function safeCall(callback) {
+
+    if (notNull(callback)) {
+        callback();
+    }
 }
 

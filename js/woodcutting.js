@@ -95,7 +95,7 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
     this._lives = lives;
     this._currentLives = lives;
     this._respawnMultiplier = respawnMultiplier;
-    this.favour = favour;
+    this._favour = favour;
 
     /**
      * Hit this tree
@@ -131,7 +131,11 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
      */
     this.reset = function() {
         this._currentHealth = this._health;
-    }
+    };
+
+    this.applyFavour = function(player) {
+        player.skills.woodcutting.favour += this._favour;
+    };
 }
 
 /**
@@ -145,13 +149,17 @@ function getTreeView(tree) {
     var sprite = new createjs.Sprite(tree.spriteSheet, "idle");
     centerOnScreen(sprite, 100, 100);
 
-    return new ResourceView(sprite, function(sprite, stage) { // Idle
+    return new ResourceView(sprite, function(sprite, cleared, stage, callback) { // Idle
         sprite.gotoAndPlay("idle");
-    }, function(sprite, stage) { // Degrade
+        safeCall(callback);
+    }, function(sprite, cleared, stage, callback) { // Degrade
         sprite.gotoAndPlay("degrade");
-    }, function(sprite, stage) { // Deplete
+        safeCall(callback);
+    }, function(sprite, cleared, stage, callback) { // Deplete
         sprite.gotoAndPlay("degrade");
-    }, function(sprite, stage, callback) { // Interact
+        safeCall(callback);
+    }, function(sprite, cleared, stage, event, callback) { // Interact
         sprite.gotoAndPlay("interact");
+        safeCall(callback);
     });
 }
