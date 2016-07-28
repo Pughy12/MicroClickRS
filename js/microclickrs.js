@@ -202,9 +202,9 @@ function onLoadFinish() {
     stage.update();
 
     var gameConfig = {
-        woodcutting : getWoodcuttingScreen(loader)
+        woodcutting : getWoodcuttingScreen(loader)//,
 
-        // farming: [],
+        // farming: getFarmingScreen(loader),
         //
         // fishing: new ResourceChain(),
         //

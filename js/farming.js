@@ -35,7 +35,7 @@ function getFarmingScreen(loader) {
         StandardHerb.DWARF_WEED
     ];
 
-    var resourceChain = new ResourceChain();
+    var chains = [new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain()];
 
     for (var i = 0; i < orderedHerbs.length; i++) {
         const herb = orderedHerbs[i];
@@ -51,14 +51,26 @@ function getFarmingScreen(loader) {
             }
         });
 
-        if (i === (orderedHerbs.length - 1)) {
-            resourceChain.chainForever(function() {
-                return new EventFiringResource(herb.model(), getTreeView(herb), stage);
-            });
-        } else {
-            resourceChain.chain(new EventFiringResource(herb.model(), getTreeView(herb), stage));
+        for (var chainIndex = 0; chainIndex < chains.length; chainIndex++) {
+
+            if (i === (orderedHerbs.length - 1)) {
+                chains[chainIndex].chainForever(function () {
+                    return new EventFiringResource(herb.model(), getTreeView(herb), stage);
+                });
+            } else {
+                chains[chainIndex].chain(new EventFiringResource(herb.model(), getTreeView(herb), stage));
+            }
         }
     }
+
+    return {
+        draw: function() {
+
+            for (var i = 0; i < chains.length; i++) {
+                chains[i].draw();
+            }
+        }
+    };
 
 }
 
