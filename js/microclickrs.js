@@ -27,6 +27,11 @@ var progress;
 // Progress text asset.
 var progressText;
 
+var eventType = {
+    IMMEDIATE: "immediate",
+    DELAYED: "delayed"
+};
+
 var Trees = {
     NORMAL: {
         name: "tree-1",
@@ -76,35 +81,39 @@ function EventFiringResource(model, view, stage) {
     this._onDepleteFunc = null;
     const me = this;
 
-    this.view.sprite.x = canvas.width / 2;
-    this.view.sprite.y = canvas.height / 2;
     this.view.sprite.on("click", function() {
-        me.model.interact();
-        me.view.interactAnim();
 
-        if (me.model.isDegraded()) {
-            me.view.degradeAnim(stage);
-            //TODO This should probably be handled in an event rather than here.
-            player.currentSkill.favour += me.model.favour;
+        me.model.interact({
+            immediate: function(callback) {
+                me.view.interactAnim(stage, {type: eventType.IMMEDIATE}, callback);
+            },
+            delayed: function(callback) {
+                me.view.interactAnim(stage, {type: eventType.DELAYED}, callback)
+            },
+            degrade: function() {
+                me.view.degradeAnim(stage);
+                player.currentSkill.favour += me.model.favour;
 
-            if (me._onDegradeFunc != null && typeof(me._onDegradeFunc) !== 'undefined') {
-                me._onDegradeFunc(stage);
-            }
+                if (me._onDegradeFunc != null && typeof(me._onDegradeFunc) !== 'undefined') {
+                    me._onDegradeFunc(stage);
+                }
 
-            setTimeout(function () {
-                me.model.reset();
+                setTimeout(function() {
+                    me.model.reset();
+                    me.view.idleAnim(stage);
+                }, me.model.getRespawnTime());
+            },
+            deplete: function() {
+                me.view.depleteAnim(stage);
 
-                if (me.model.isDepleted()) {
-                    me.view.depleteAnim(stage);
+                setTimeout(function () {
 
                     if (me._onDepleteFunc != null && typeof(me._onDepleteFunc) !== 'undefined') {
                         me._onDepleteFunc(stage);
                     }
-                } else {
-                    me.view.idleAnim(stage);
-                }
-            }, me.model.getRespawnTime());
-        }
+                }, me.model.getRespawnTime());
+            }
+        });
     });
 
     this.onDegrade = function(onDegradeFunc) {
@@ -286,13 +295,17 @@ function onLoadFinish() {
  * @returns {ResourceView} A resource view to call animations on.
  */
 function getTreeView(tree) {
-    return new ResourceView(new createjs.Sprite(tree.spriteSheet, "idle"), function(sprite, stage) { // Idle
+    var view = new createjs.Sprite(tree.spriteSheet, "idle");
+    view.sprite.x = canvas.width / 2;
+    view.sprite.y = canvas.height / 2;
+
+    return new ResourceView(view, function(sprite, stage) { // Idle
         sprite.gotoAndPlay("idle");
     }, function(sprite, stage) { // Degrade
         sprite.gotoAndPlay("degrade");
     }, function(sprite, stage) { // Deplete
-        stage.removeChild(sprite);
-    }, function(sprite, stage) { // Interact
+        sprite.gotoAndPlay("degrade");
+    }, function(sprite, stage, callback) { // Interact
         // TODO Tree wobble/leaf particles?
     });
 }
@@ -343,10 +356,76 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/**
+ * A herb resource which has the "duck type" of "Resource model" (implementing interact(), getRespawnTime() and reset()
+ *
+ * @param name The name of the herb
+ * @param lives The lives of the herb
+ * @param respawnMultiplier The multiplier for respawn times (on degrade, this is the time til respawn,
+ *                              on deplete this multiplier is applied to the number of lives)
+ * @param favour The amount of favour received for harvesting the herb
+ * @param growTime The amount of time it takes this herb to grow
+ * @constructor
+ */
+function Herb(name, lives, respawnMultiplier, favour, growTime) {
+    this.name = name;
+    this._health = 2;
+    this._currentHealth = 2;
+    this._lives = lives;
+    this._currentLives = lives;
+    this._respawnMultiplier = respawnMultiplier;
+    this._growTime = growTime;
+    this.favour = favour;
+    this._isReady = false;
+
+    const me = this;
+
+    /**
+     * Water this herb, then harvest this herb     *
+     */
+    this.interact = function(callbacks) {
+
+        switch(this._currentHealth) {
+            case 2:
+                this._currentHealth--;
+                callbacks.immediate();
+
+                setTimeout(function() {
+                    callbacks.delayed(function() {
+                        me._isReady = true;
+                    });
+                }, this._growTime);
+                break;
+            case 1:
+
+                if (this._isReady) {
+                    this._currentHealth--;
+
+                    if (--this._currentLives == 0) {
+                        callbacks.deplete();
+                    } else {
+                        callbacks.degrade();
+                    }
+                }
+        }
+    };
+
+    /**
+     * Gets the amount of time to wait before respawning
+     *
+     * @returns {number} The respawn time in milliseconds
+     */
+    this.getRespawnTime = function() {
+        return this._currentLives !== 0 ? this._respawnMultiplier : this._respawnMultiplier * this._lives;
+    };
+
+    this.reset = function() {
+        this._currentHealth = this._health;
+    };
+}
 
 /**
- * A tree object which has the "duck type" of "Resource model" (implementing interact(), isDegraded(), isDepleted(),
- * getRespawnTime() and reset()
+ * A tree resource which has the "duck type" of "Resource model" (implementing interact(), getRespawnTime() and reset()
  *
  * @param name The name of the tree
  * @param health The initial health of the tree
@@ -367,33 +446,22 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
 
     /**
      * Hit this tree
+     *
      */
-    this.interact = function() {
+    this.interact = function(callbacks) {
 
         if (this._currentHealth > 0) {
 
             if (--this._currentHealth === 0) {
-                this._currentLives--;
+
+                if (--this._currentLives == 0) {
+                    callbacks.deplete();
+                } else {
+                    callbacks.degrade();
+                }
             }
+            callbacks.immediate();
         }
-    };
-
-    /**
-     * Is this tree degraded?
-     *
-     * @returns {boolean} true if degraded, false if not
-     */
-    this.isDegraded = function() {
-        return this._currentHealth === 0
-    };
-
-    /**
-     * Is this tree depleted?
-     *
-     * @returns {boolean} true if depleted, false if not
-     */
-    this.isDepleted = function() {
-        return this._currentLives === 0;
     };
 
     /**
@@ -402,7 +470,7 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
      * @returns {number} The respawn time in milliseconds
      */
     this.getRespawnTime = function() {
-        return !this.isDepleted() ? this._respawnMultiplier : this._respawnMultiplier * this._lives;
+        return this._currentLives !== 0 ? this._respawnMultiplier : this._respawnMultiplier * this._lives;
     };
 
     /**
@@ -465,10 +533,10 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) 
         }
     };
 
-    this.interactAnim = function(stage) {
+    this.interactAnim = function(stage, event, callback) {
 
         if (notNull(interactAnim)) {
-            interactAnim(this.sprite, stage);
+            interactAnim(this.sprite, stage, event, callback);
         }
     }
 }
@@ -495,6 +563,7 @@ function ResourceChain() {
 
         if (notNull(this.currentResource)) {
             this._latestResource.onDeplete(function (stage) {
+                stage.removeChild(me.currentResource.view.sprite);
                 me.currentResource = chainedResource;
                 stage.addChild(chainedResource.view.sprite);
             });
