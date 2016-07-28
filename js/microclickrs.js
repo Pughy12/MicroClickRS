@@ -11,19 +11,10 @@ var isMobile;
 var canvas;
 // The Easel element constructed of the canvas.
 var stage;
-
 // Splash screen graphic.
 var splash;
-
-// Background graphical asset.
-var background;
-// Foreground graphical asset.
-var foreground;
-// Gun graphical asset.
-var gun;
 // Progress graphical asset.
 var progress;
-
 // Progress text asset.
 var progressText;
 
@@ -184,11 +175,11 @@ function init() {
     // };
 
     // Display loading screen text.
-    progressText = new createjs.Text("Loading: 0%", "bold 60px Arial", "black");
+    progressText = new createjs.Text("Loading: 0%", "24px Arial", "black");
     progressText.textAlign = "center";
     progressText.textBaseline = "middle";
-    progressText.x = 1380;
-    progressText.y = 780;
+    progressText.x = 100;
+    progressText.y = 50;
     stage.addChild(progressText);
     stage.update();
 
@@ -223,23 +214,26 @@ function onLoadProgess() {
  */
 function onLoadFinish() {
 
-    // Log finished loading to console.
-    console.log("Finished loading.");
+    // Create a button to start the game
+    var startButton = new createjs.Text("Start Game", "bold 60px Arial", "black");
+    var startButtonHitBox = new createjs.Shape();
 
-    var startButton = new createjs.Shape();
+    startButtonHitBox.graphics
+        .beginFill("#000")
+        .drawRect(0, 0, startButton.getMeasuredWidth(), startButton.getMeasuredHeight());
 
-    startButton.graphics.beginStroke("black").beginFill("black").drawRect(60, 20, 200, 100);
+    startButton.hitArea = startButtonHitBox;
+    startButton.x = canvas.width / 2;
+    startButton.y= canvas.height / 2;
 
     // Add button to start game.
     stage.addChild(startButton);
-    console.log("HELLO WE DID THE THING");
     stage.update();
 
     var woodcuttingChain = new ResourceChain();
 
     for (var i = 0; i < orderedTrees.length; i++) {
         const tree = orderedTrees[i];
-        console.log(tree);
 
         var image = loader.getResult(tree.name);
 
@@ -293,7 +287,7 @@ function getTreeView(tree) {
     }, function(sprite, stage) { // Deplete
         stage.removeChild(sprite);
     }, function(sprite, stage) { // Interact
-        // TODO Tree wobble/leaf particles?
+        sprite.gotoAndPlay("interact");
     });
 }
 
@@ -316,8 +310,8 @@ function watchRestart(gameConfig) {
 
     var hudView = new createjs.Text(player.currentSkill.name + " Favour: " + player.currentSkill.favour,
         "bold 50px Arial", "black");
-    hudView.x = 10;
-    hudView.y = 20;
+    hudView.x = 20;
+    hudView.y = 50;
 
     hud = new Hud(player, hudView);
 
@@ -474,7 +468,7 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) 
 }
 
 /**
- * A helpler class allowing resources to be chained with one another. That is, after a resource is depleted,
+ * A helper class allowing resources to be chained with one another. That is, after a resource is depleted,
  * the next resource in the chain takes its place.
  *
  * @constructor
