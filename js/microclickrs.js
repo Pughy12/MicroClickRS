@@ -106,7 +106,7 @@ var fishing = {
 };
 
 var player = {
-    currentSkill: woodcutting,
+    currentSkill: null,
     skills: {
         woodcutting: woodcutting,
         farming: farming,
@@ -201,14 +201,22 @@ function onLoadFinish() {
     stage.addChild(startButton);
     stage.update();
 
-    var gameConfig = {
-        woodcutting : getWoodcuttingScreen(loader)//,
-
-        // farming: getFarmingScreen(loader),
-        //
-        // fishing: new ResourceChain(),
-        //
-        // mining: new ResourceChain()
+    var gameConfig =  {
+        minigames :[
+            {
+                screen: getWoodcuttingScreen(loader),
+                skill: woodcutting
+            },
+            {
+                screen: getFarmingScreen(loader),
+                skill: farming
+            }
+            //
+            // fishing: new ResourceChain(),
+            //
+            // mining: new ResourceChain()
+        ],
+        minigameIndex: 0
     };
 
     startButton.on("click", function(event) {
@@ -228,6 +236,8 @@ function watchRestart(gameConfig) {
     // Remove loading objects.
     stage.removeAllChildren();
 
+    player.currentSkill = gameConfig.minigames[gameConfig.minigameIndex].skill;
+
     /* Load stage objects. */
     var background = new createjs.Shape();
 
@@ -242,8 +252,46 @@ function watchRestart(gameConfig) {
 
     hud = new Hud(player, hudView);
 
+    var nextButton = new createjs.Text("Next", "bold 30px Arial", "black");
+    var prevButton = new createjs.Text("Prev", "bold 30px Arial", "black");
+    var buttonHitBox = new createjs.Shape();
+
+    buttonHitBox.graphics
+        .beginFill("#000")
+        .drawRect(0, 0, nextButton.getMeasuredWidth(), nextButton.getMeasuredHeight());
+
+    nextButton.hitArea = buttonHitBox;
+    nextButton.x = 600;
+    nextButton.y = canvas.height / 2;
+
+    prevButton.hitArea = buttonHitBox;
+    prevButton.x = 50;
+    prevButton.y = canvas.height / 2;
+
+    // Add buttons to switch skills
+    stage.addChild(nextButton);
+    stage.addChild(prevButton);
     stage.addChild(hudView);
-    gameConfig.woodcutting.draw(stage);
+    gameConfig.minigames[gameConfig.minigameIndex].screen.draw(stage);
+
+    nextButton.on("click", function (event) {
+        var minigames = gameConfig.minigames;
+        var current = minigames[gameConfig.minigameIndex];
+        var next = minigames[(gameConfig.minigameIndex + 1) % minigames.length];
+        current.screen.clear(stage);
+        player.currentSkill = next.skill;
+        next.screen.draw(stage);
+    });
+
+    prevButton.on("click", function (event) {
+        var minigames = gameConfig.minigames;
+        var index = gameConfig.minigameIndex;
+        var current = minigames[index];
+        var previous = minigames[index == 0 ? minigames.length - 1 : index - 1];
+        current.screen.clear(stage);
+        player.currentSkill = previous.skill;
+        previous.screen.draw(stage);
+    });
 }
 
 /**

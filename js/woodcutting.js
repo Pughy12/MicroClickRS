@@ -142,6 +142,7 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
  */
 function getTreeView(tree) {
     var sprite = new createjs.Sprite(tree.spriteSheet, "idle");
+    sprite.regX = sprite.regY = 50;
     sprite.x = canvas.width / 2;
     sprite.y = canvas.height / 2;
 
