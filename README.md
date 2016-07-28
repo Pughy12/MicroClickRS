@@ -12,6 +12,12 @@ Properties
 - health
 - lives
 
+Herbs to collect from farming (in order of goodness):
+- Marrentill
+- Ranarr
+- Snapdragon
+- Dwarf weed
+
 EARN FAVOUR AND RESOURCES
 
 Skills
