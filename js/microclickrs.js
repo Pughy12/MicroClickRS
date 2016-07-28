@@ -161,7 +161,7 @@ function init() {
     loader.addEventListener("progress", onLoadProgess);
     loader.addEventListener("complete", onLoadFinish);
 
-    var fullManifest = [].concat(getWoodcuttingManifest());//.concat(getFarmingManifest());
+    var fullManifest = [].concat(getWoodcuttingManifest()).concat(getFarmingManifest());
 
     loader.loadManifest(fullManifest);
 }
@@ -245,7 +245,7 @@ function watchRestart(gameConfig) {
 
     stage.addChild(background);
 
-    var hudView = new createjs.Text(player.currentSkill.name + " Favour: " + player.currentSkill.favour,
+    var hudView = new createjs.Text(player.currentSkill.name + " favour: " + player.currentSkill.favour,
         "bold 50px Arial", "black");
     hudView.x = 20;
     hudView.y = 50;
@@ -272,12 +272,15 @@ function watchRestart(gameConfig) {
     stage.addChild(nextButton);
     stage.addChild(prevButton);
     stage.addChild(hudView);
+
     gameConfig.minigames[gameConfig.minigameIndex].screen.draw(stage);
 
     nextButton.on("click", function (event) {
         var minigames = gameConfig.minigames;
         var current = minigames[gameConfig.minigameIndex];
-        var next = minigames[(gameConfig.minigameIndex + 1) % minigames.length];
+        var newIndex = (gameConfig.minigameIndex + 1) % minigames.length;
+        var next = minigames[newIndex];
+        gameConfig.minigameIndex = newIndex;
         current.screen.clear(stage);
         player.currentSkill = next.skill;
         next.screen.draw(stage);
@@ -287,7 +290,9 @@ function watchRestart(gameConfig) {
         var minigames = gameConfig.minigames;
         var index = gameConfig.minigameIndex;
         var current = minigames[index];
-        var previous = minigames[index == 0 ? minigames.length - 1 : index - 1];
+        var newIndex = index == 0 ? minigames.length - 1 : index - 1;
+        var previous = minigames[newIndex];
+        gameConfig.minigameIndex = newIndex;
         current.screen.clear(stage);
         player.currentSkill = previous.skill;
         previous.screen.draw(stage);
@@ -381,6 +386,7 @@ function ResourceView(sprite, idleAnim, degradeAnim, depleteAnim, interactAnim) 
 function ResourceChain() {
     this.currentResource = null;
     this._latestResource = null;
+    this._isCleared = false;
     const me = this;
 
     /**
@@ -396,7 +402,7 @@ function ResourceChain() {
             this._latestResource.onDeplete(function (stage) {
                 stage.removeChild(me.currentResource.view.sprite);
                 me.currentResource = chainedResource;
-                stage.addChild(chainedResource.view.sprite);
+                me._safeDrawCurrent();
             });
             this._latestResource = chainedResource;
         } else {
@@ -420,7 +426,7 @@ function ResourceChain() {
             me.currentResource = chainedResourceFactory();
             me._latestResource = me.currentResource;
             me.chainForever(chainedResourceFactory);
-            stage.addChild(me.currentResource.view.sprite);
+            me._safeDrawCurrent();
         });
     };
 
@@ -431,7 +437,20 @@ function ResourceChain() {
      */
     this.draw = function(stage) {
         stage.addChild(this.currentResource.view.sprite);
-    }
+        this._isCleared = false;
+    };
+
+    this.clear = function(stage) {
+        this._isCleared = true;
+        stage.removeChild(this.currentResource.view.sprite);
+    };
+
+    this._safeDrawCurrent = function() {
+
+        if (!this._isCleared) {
+            stage.addChild(this.currentResource.view.sprite)
+        }
+    };
 }
 
 /**
@@ -460,7 +479,7 @@ function Hud(player, hudView) {
     this._getPlayerExpLine = function() {
         this._playerSkill = this._player.currentSkill.name;
         this._playerFavour = this._player.currentSkill.favour;
-        return this._playerSkill + " Favour: " + this._playerFavour;
+        return this._playerSkill + " favour: " + this._playerFavour;
     }
 
 }
@@ -474,5 +493,12 @@ function Hud(player, hudView) {
  */
 function notNull(obj) {
     return (obj != null) && (typeof(obj) !== 'undefined');
+}
+
+function centerOnScreen(visibleObject, height, width) {
+    visibleObject.x = canvas.width / 2;
+    visibleObject.y = canvas.height / 2;
+    visibleObject.regY = height / 2;
+    visibleObject.regX = width / 2;
 }
 

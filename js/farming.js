@@ -1,6 +1,8 @@
 
 function getFarmingManifest() {
-    //FIXME PUG PLS
+    return [
+        {src: "img/herb-patch.png", id: "herb-patch"}
+    ];
 }
 
 var StandardHerb = {
@@ -35,40 +37,53 @@ function getFarmingScreen(loader) {
         StandardHerb.DWARF_WEED
     ];
 
-    var chains = [new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain()];
+    var herbPatch = new createjs.Bitmap(loader.getResult("herb-patch"));
+    centerOnScreen(herbPatch, herbPatch.image.height, herbPatch.image.width);
+    herbPatch.scaleX = 0.8;
+    herbPatch.scaleY = 0.8;
 
-    for (var i = 0; i < orderedHerbs.length; i++) {
-        const herb = orderedHerbs[i];
+    herbPatch.on("click", function() {
+        console.log("YOU HAVE CLICKED IMAGE LUL");
+    });
 
-        var image = loader.getResult(herb.name);
-
-        herb.spriteSheet = new createjs.SpriteSheet({
-            images: [image],
-            frames: {width: image.width / 5, height: image.height},
-            animations: {
-                idle: 0,
-                degrade: 1
-            }
-        });
-
-        for (var chainIndex = 0; chainIndex < chains.length; chainIndex++) {
-
-            if (i === (orderedHerbs.length - 1)) {
-                chains[chainIndex].chainForever(function () {
-                    return new EventFiringResource(herb.model(), getTreeView(herb), stage);
-                });
-            } else {
-                chains[chainIndex].chain(new EventFiringResource(herb.model(), getTreeView(herb), stage));
-            }
-        }
-    }
+    // var chains = [new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain()];
+    //
+    // for (var i = 0; i < orderedHerbs.length; i++) {
+    //     const herb = orderedHerbs[i];
+    //
+    //     var image = loader.getResult(herb.name);
+    //
+    //     herb.spriteSheet = new createjs.SpriteSheet({
+    //         images: [image],
+    //         frames: {width: image.width / 4, height: image.height},
+    //         animations: {
+    //             idle: 0,
+    //             degrade: 1
+    //         }
+    //     });
+    //
+    //     for (var chainIndex = 0; chainIndex < chains.length; chainIndex++) {
+    //
+    //         if (i === (orderedHerbs.length - 1)) {
+    //             chains[chainIndex].chainForever(function () {
+    //                 return new EventFiringResource(herb.model(), getTreeView(herb), stage);
+    //             });
+    //         } else {
+    //             chains[chainIndex].chain(new EventFiringResource(herb.model(), getTreeView(herb), stage));
+    //         }
+    //     }
+    // }
 
     return {
-        draw: function() {
+        draw: function(stage) {
+            stage.addChild(herbPatch);
 
-            for (var i = 0; i < chains.length; i++) {
-                chains[i].draw();
-            }
+            // for (var i = 0; i < chains.length; i++) {
+            //     chains[i].draw(stage);
+            // }
+        },
+        clear: function(stage) {
+            stage.removeChild(herbPatch);
         }
     };
 
