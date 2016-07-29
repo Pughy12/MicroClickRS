@@ -13,25 +13,25 @@ var StandardHerb = {
     MARENTILL: {
         id: "herb-1",
         model: function() {
-            return new Herb("Marentill", 20, 1000, 25, 2000, 5000);
+            return new Herb("Marentill", 3, 1000, 25, 2000, 5000);
         }
     },
     RANARR: {
         id: "herb-2",
         model: function() {
-            return new Herb("Ranarr", 20, 3500, 60, 7000, 11000);
+            return new Herb("Ranarr", 3, 3500, 60, 7000, 12000);
         }
     },
     SNAPDRAGON: {
         id: "herb-3",
         model: function() {
-            return new Herb("Snapdragon", 15, 7500, 150, 15000, 20000);
+            return new Herb("Snapdragon", 3, 7500, 150, 15000, 30000);
         }
     },
     DWARF_WEED: {
         id: "herb-4",
         model: function() {
-            return new Herb("Dwarf Weed", 10, 12500, 350, 25000, 35000);
+            return new Herb("Dwarf Weed", 3, 12500, 350, 25000, 50000);
         }
     }
 };
