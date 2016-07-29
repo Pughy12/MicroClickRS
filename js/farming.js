@@ -13,25 +13,25 @@ var StandardHerb = {
     MARENTILL: {
         id: "herb-1",
         model: function() {
-            return new Herb("Marentill", 5, 1000, 25, 5000);
+            return new Herb("Marentill", 20, 1000, 25, 2000, 5000);
         }
     },
     RANARR: {
         id: "herb-2",
         model: function() {
-            return new Herb("Ranarr", 5, 1000, 25, 1000);
+            return new Herb("Ranarr", 20, 3500, 60, 7000, 11000);
         }
     },
     SNAPDRAGON: {
         id: "herb-3",
         model: function() {
-            return new Herb("Snapdragon", 5, 1000, 25, 1000);
+            return new Herb("Snapdragon", 15, 7500, 150, 15000, 20000);
         }
     },
     DWARF_WEED: {
         id: "herb-4",
         model: function() {
-            return new Herb("Dwarf Weed", 5, 1000, 25, 1000);
+            return new Herb("Dwarf Weed", 10, 12500, 350, 25000, 35000);
         }
     }
 };
@@ -54,16 +54,20 @@ function getFarmingScreen(loader) {
         console.log("YOU HAVE CLICKED IMAGE LUL");
     });
 
-    var chains = [new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain(), new ResourceChain()];
+    var chains = [];
 
     var xOffset = (herbPatch.image.width / 4);
     var yOffset = (herbPatch.image.height / 4);
 
     var coords = [
         {x: herbPatch.x, y: herbPatch.y},
+        {x: herbPatch.x + xOffset, y: herbPatch.y},
+        {x: herbPatch.x - xOffset, y: herbPatch.y},
         {x: herbPatch.x - xOffset, y: herbPatch.y - yOffset},
+        {x: herbPatch.x, y: herbPatch.y - yOffset},
         {x: herbPatch.x + xOffset, y: herbPatch.y - yOffset},
         {x: herbPatch.x - xOffset, y: herbPatch.y + yOffset},
+        {x: herbPatch.x, y: herbPatch.y + yOffset},
         {x: herbPatch.x + xOffset, y: herbPatch.y + yOffset}
     ];
 
@@ -88,15 +92,19 @@ function getFarmingScreen(loader) {
         const regX = singleWidth / 2;
         const regY = image.height / 2;
 
-        for (var chainIndex = 0; chainIndex < chains.length; chainIndex++) {
-            const coord = coords[chainIndex];
+        for (var coordIndex = 0; coordIndex < coords.length; coordIndex++) {
+            const coord = coords[coordIndex];
+
+            if (!notNull(chains[coordIndex])) {
+                chains[coordIndex] = new ResourceChain();
+            }
 
             if (i === (orderedHerbs.length - 1)) {
-                chains[chainIndex].chainForever(function () {
+                chains[coordIndex].chainForever(function () {
                     return new EventFiringResource(herb.model(), new HerbView(herb, coord.x, coord.y, regX, regY), stage);
                 });
             } else {
-                chains[chainIndex].chain(new EventFiringResource(herb.model(), new HerbView(herb, coord.x, coord.y, regX, regY), stage));
+                chains[coordIndex].chain(new EventFiringResource(herb.model(), new HerbView(herb, coord.x, coord.y, regX, regY), stage));
             }
         }
     }
@@ -128,17 +136,19 @@ function getFarmingScreen(loader) {
  * @param respawnMultiplier The multiplier for respawn times (on degrade, this is the time til respawn,
  *                              on deplete this multiplier is applied to the number of lives)
  * @param favour The amount of favour received for harvesting the herb
- * @param growTime The amount of time it takes this herb to grow
+ * @param growMin The minimum amount of time it takes this herb to grow
+ * @param growMax The maximum amount of time it takes this herb to grow
  * @constructor
  */
-function Herb(name, lives, respawnMultiplier, favour, growTime) {
+function Herb(name, lives, respawnMultiplier, favour, growMin, growMax) {
     this.name = name;
     this._health = 2;
     this._currentHealth = 2;
     this._lives = lives;
     this._currentLives = lives;
     this._respawnMultiplier = respawnMultiplier;
-    this._growTime = growTime;
+    this._growMin = growMin;
+    this._growMax = growMax;
     this._favour = favour;
     this._isReady = false;
 
@@ -158,7 +168,7 @@ function Herb(name, lives, respawnMultiplier, favour, growTime) {
                     callbacks.delayed(function() {
                         me._isReady = true;
                     });
-                }, this._growTime);
+                }, getRandomInt(this._growMin, this._growMax));
                 break;
             case 1:
 
@@ -184,6 +194,7 @@ function Herb(name, lives, respawnMultiplier, favour, growTime) {
     };
 
     this.reset = function() {
+        this._isReady = false;
         this._currentHealth = this._health;
     };
 
