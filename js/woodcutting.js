@@ -24,19 +24,19 @@ var StandardTree = {
     OAK: {
         id: "tree-2",
         model: function() {
-            return new Tree("Oak", 20, 2, 5000, 50);
+            return new Tree("Oak", 25, 2, 5000, 50);
         }
     },
     WILLOW: {
         id: "tree-3",
         model: function() {
-            return new Tree("Willow", 15, 2, 7500, 150);
+            return new Tree("Willow", 50, 2, 7500, 150);
         }
     },
     YEW: {
         id: "tree-4",
         model: function() {
-            return new Tree("Yew", 30, 2, 12000, 250);
+            return new Tree("Yew", 100, 2, 12000, 250);
         }
     }
 };
