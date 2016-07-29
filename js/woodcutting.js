@@ -18,25 +18,25 @@ var StandardTree = {
     NORMAL: {
         id: "tree-1",
         model: function() {
-            return new Tree("Normal", 30, 2, 1000, 25)
+            return new Tree("Normal", 10, 2, 1000, 25);
         }
     },
     OAK: {
         id: "tree-2",
         model: function() {
-            return new Tree("Oak", 2, 2, 1000, 50)
+            return new Tree("Oak", 20, 2, 5000, 50);
         }
     },
     WILLOW: {
         id: "tree-3",
         model: function() {
-            return new Tree("Willow", 2, 2, 1000, 150)
+            return new Tree("Willow", 15, 2, 7500, 150);
         }
     },
     YEW: {
         id: "tree-4",
         model: function() {
-            return new Tree("Yew", 2, 2, 1000, 250)
+            return new Tree("Yew", 30, 2, 12000, 250);
         }
     }
 };
@@ -155,6 +155,7 @@ function TreeView(tree, treeImage, leafImage) {
     this._treeImage = treeImage;
     this._leafImage = leafImage;
     this._onScreenLeaves = [];
+    this.sprite.scaleX = this.sprite.scaleY = 4;
     const me = this;
 
     centerOnScreen(this.sprite, 100, 100);
@@ -210,6 +211,7 @@ function TreeView(tree, treeImage, leafImage) {
 
     this._spawnLeaf = function(stage) {
         var leaf = new createjs.Bitmap(this._leafImage);
+        leaf.scaleX = leaf.scaleY = 2.5;
         var rand = getRandomInt(0, 3) / 10;
         var direction = getRandomInt(1, 2);
 

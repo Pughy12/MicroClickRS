@@ -250,14 +250,14 @@ function watchRestart(gameConfig) {
     stage.addChild(background);
 
     var hudView = new createjs.Text(player.currentSkill.name + " favour: " + player.currentSkill.favour,
-        "bold 50px Arial", "black");
+        "bold 60px Arial", "black");
     hudView.x = 20;
     hudView.y = 50;
 
     hud = new Hud(player, hudView);
 
-    var nextButton = new createjs.Text("Next", "bold 30px Arial", "black");
-    var prevButton = new createjs.Text("Prev", "bold 30px Arial", "black");
+    var nextButton = new createjs.Text("Next", "bold 42px Arial", "black");
+    var prevButton = new createjs.Text("Prev", "bold 42px Arial", "black");
     var buttonHitBox = new createjs.Shape();
 
     buttonHitBox.graphics
@@ -265,7 +265,7 @@ function watchRestart(gameConfig) {
         .drawRect(0, 0, nextButton.getMeasuredWidth(), nextButton.getMeasuredHeight());
 
     nextButton.hitArea = buttonHitBox;
-    nextButton.x = 600;
+    nextButton.x = canvas.width - (canvas.width * 0.1);
     nextButton.y = canvas.height / 2;
 
     prevButton.hitArea = buttonHitBox;

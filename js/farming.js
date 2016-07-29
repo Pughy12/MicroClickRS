@@ -47,8 +47,8 @@ function getFarmingScreen(loader) {
 
     var herbPatch = new createjs.Bitmap(loader.getResult("herb-patch"));
     centerOnScreen(herbPatch, herbPatch.image.height, herbPatch.image.width);
-    herbPatch.scaleX = 0.8;
-    herbPatch.scaleY = 0.8;
+    herbPatch.scaleX = 1.4;
+    herbPatch.scaleY = 1.4;
 
     herbPatch.on("click", function() {
         console.log("YOU HAVE CLICKED IMAGE LUL");
@@ -56,8 +56,8 @@ function getFarmingScreen(loader) {
 
     var chains = [];
 
-    var xOffset = (herbPatch.image.width / 4);
-    var yOffset = (herbPatch.image.height / 4);
+    var xOffset = (herbPatch.image.width / 2);
+    var yOffset = (herbPatch.image.height / 2);
 
     var coords = [
         {x: herbPatch.x, y: herbPatch.y},
@@ -221,6 +221,7 @@ function HerbView(herb, x, y, regX, regY) {
     this.sprite.y = y;
     this.sprite.regX = regX;
     this.sprite.regY = regY;
+    this.sprite.scaleX = this.sprite.scaleY = 2;
     const me = this;
 
     this.idleAnim = function(stage, callback) {
