@@ -93,10 +93,10 @@ function getFarmingScreen(loader) {
 
             if (i === (orderedHerbs.length - 1)) {
                 chains[chainIndex].chainForever(function () {
-                    return new EventFiringResource(herb.model(), getHerbView(herb, coord.x, coord.y, regX, regY), stage);
+                    return new EventFiringResource(herb.model(), new HerbView(herb, coord.x, coord.y, regX, regY), stage);
                 });
             } else {
-                chains[chainIndex].chain(new EventFiringResource(herb.model(), getHerbView(herb, coord.x, coord.y, regX, regY), stage));
+                chains[chainIndex].chain(new EventFiringResource(herb.model(), new HerbView(herb, coord.x, coord.y, regX, regY), stage));
             }
         }
     }
@@ -201,53 +201,58 @@ function Herb(name, lives, respawnMultiplier, favour, growTime) {
  * @param regX The offset for the position of the image
  * @param regY The offset for the position of the image
  *
- * @returns {ResourceView} A resource view to call animations on.
+ * @constructor
  */
-function getHerbView(herb, x, y, regX, regY) {
-    var sprite = new createjs.Sprite(herb.spriteSheet, "idle");
-    sprite.x = x;
-    sprite.y = y;
-    sprite.regX = regX;
-    sprite.regY = regY;
+function HerbView(herb, x, y, regX, regY) {
+    this.sprite = new createjs.Sprite(herb.spriteSheet, "idle");
+    this.cleared = false;
+    this.sprite.x = x;
+    this.sprite.y = y;
+    this.sprite.regX = regX;
+    this.sprite.regY = regY;
+    const me = this;
 
-    function idle(sprite, cleared, stage, callback) {
-        sprite.gotoAndPlay("idle");
+    this.idleAnim = function(stage, callback) {
+        this.sprite.gotoAndPlay("idle");
 
         // Reset the sprite's position since we took it off the screen during a harvest
-        sprite.x = x;
-        sprite.y = y;
+        this.sprite.x = x;
+        this.sprite.y = y;
 
-        if (!cleared) {
-            stage.addChild(sprite);
+        if (!this.cleared) {
+            stage.addChild(this.sprite);
         }
         safeCall(callback);
-    }
+    };
 
-    function degrade(sprite, cleared, stage, callback) {
-        createjs.Tween.get(sprite).to({x: -regX, y: -regY}, 2000, createjs.Ease.getElasticInOut(2, 5)).call(function() {
-            stage.removeChild(sprite);
+    this.degradeAnim = function(stage, callback) {
+        createjs.Tween.get(this.sprite).to({x: -regX, y: -regY}, 2000, createjs.Ease.getElasticInOut(2, 5)).call(function() {
+            stage.removeChild(me.sprite);
             safeCall(callback);
         });
-    }
+    };
 
-    function deplete(sprite, cleared, stage, callback) {
-        sprite.gotoAndPlay("die");
-    }
+    this.depleteAnim = function(stage, callback) {
+        this.sprite.gotoAndPlay("die");
+        callback();
+    };
 
-    function interact(sprite, cleared, stage, event, callback) {
+    this.interactAnim = function(stage, event, callback) {
 
         if (notNull(callback)) {
-            sprite.on('animationend', function() {
+            this.sprite.on('animationend', function() {
                 safeCall(callback)
             }, null, true);
         }
 
         if (event.type == eventType.IMMEDIATE) {
-            sprite.gotoAndPlay("water");
+            this.sprite.gotoAndPlay("water");
         } else if (event.type == eventType.DELAYED) {
-            sprite.gotoAndPlay("grow");
+            this.sprite.gotoAndPlay("grow");
         }
-    }
+    };
 
-    return new ResourceView(sprite, idle, degrade, deplete, interact);
+    this.getOnScreenAssets = function() {
+        return [this.sprite];
+    }
 }

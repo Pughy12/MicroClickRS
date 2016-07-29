@@ -130,6 +130,8 @@ function init() {
         isMobile = true;
     }
 
+    createjs.MotionGuidePlugin.install();
+
     // Get the canvas.
     canvas = document.getElementById("game");
     // Instantiate the stage.
@@ -449,14 +451,18 @@ function ResourceChain() {
 
     this.clear = function(stage) {
         this._isCleared = true;
-        stage.removeChild(this.currentResource.view.sprite);
+        var resourceAssets = this.currentResource.view.getOnScreenAssets();
+
+        for (var i = 0; i < resourceAssets.length; i++) {
+            stage.removeChild(resourceAssets[i]);
+        }
         this.currentResource.view.cleared = true;
     };
 
     this._safeDrawCurrent = function() {
 
         if (!this._isCleared) {
-            stage.addChild(this.currentResource.view.sprite)
+            stage.addChild(this.currentResource.view.sprite);
         }
     };
 }

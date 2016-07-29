@@ -18,7 +18,7 @@ var StandardTree = {
     NORMAL: {
         id: "tree-1",
         model: function() {
-            return new Tree("Normal", 2, 2, 1000, 25)
+            return new Tree("Normal", 30, 2, 1000, 25)
         }
     },
     OAK: {
@@ -51,10 +51,12 @@ function getWoodcuttingScreen(loader) {
         StandardTree.YEW
     ];
 
+    const leafImage = loader.getResult('leaf');
+
     for (var i = 0; i < orderedTrees.length; i++) {
         const tree = orderedTrees[i];
 
-        var image = loader.getResult(tree.id);
+        const image = loader.getResult(tree.id);
 
         tree.spriteSheet = new createjs.SpriteSheet({
             images: [image],
@@ -67,10 +69,10 @@ function getWoodcuttingScreen(loader) {
 
         if (i === (orderedTrees.length - 1)) {
             woodcuttingChain.chainForever(function() {
-                return new EventFiringResource(tree.model(), getTreeView(tree), stage);
+                return new EventFiringResource(tree.model(), new TreeView(tree, image, leafImage), stage);
             });
         } else {
-            woodcuttingChain.chain(new EventFiringResource(tree.model(), getTreeView(tree), stage));
+            woodcuttingChain.chain(new EventFiringResource(tree.model(), new TreeView(tree, image, leafImage), stage));
         }
     }
 
@@ -142,24 +144,120 @@ function Tree(name, health, lives, respawnMultiplier, favour) {
  * Get a tree's view object used to manipulate what animations are played for a tree resource
  *
  * @param tree The type of tree to get the view for
+ * @param treeImage
+ * @param leafImage
  *
- * @returns {ResourceView} A resource view to call animations on.
+ * @constructor
  */
-function getTreeView(tree) {
-    var sprite = new createjs.Sprite(tree.spriteSheet, "idle");
-    centerOnScreen(sprite, 100, 100);
+function TreeView(tree, treeImage, leafImage) {
+    this.sprite = new createjs.Sprite(tree.spriteSheet, "idle");
+    this.cleared = false;
+    this._treeImage = treeImage;
+    this._leafImage = leafImage;
+    this._onScreenLeaves = [];
+    const me = this;
 
-    return new ResourceView(sprite, function(sprite, cleared, stage, callback) { // Idle
-        sprite.gotoAndPlay("idle");
+    centerOnScreen(this.sprite, 100, 100);
+
+    /**
+     * Runs the animation for when this resource is idle
+     *
+     * @param stage The stage upon which the animation should run
+     * @param callback
+     */
+    this.idleAnim = function(stage, callback) {
+        this.sprite.gotoAndPlay("idle");
         safeCall(callback);
-    }, function(sprite, cleared, stage, callback) { // Degrade
-        sprite.gotoAndPlay("degrade");
+    };
+
+    /**
+     * Runs the animation for when this resource is degraded
+     *
+     * @param stage The stage upon which the animation should run
+     * @param callback
+     */
+    this.degradeAnim = function(stage, callback) {
+        this.sprite.gotoAndPlay("degrade");
         safeCall(callback);
-    }, function(sprite, cleared, stage, callback) { // Deplete
-        sprite.gotoAndPlay("degrade");
+    };
+
+    /**
+     * Runs the animation for when this resource is depleted
+     *
+     * @param stage The stage upon which the animation should run
+     * @param callback
+     */
+    this.depleteAnim = function(stage, callback) {
+        this.sprite.gotoAndPlay("degrade");
         safeCall(callback);
-    }, function(sprite, cleared, stage, event, callback) { // Interact
-        sprite.gotoAndPlay("interact");
+    };
+
+    this.interactAnim = function(stage, event, callback) {
+        this.sprite.gotoAndPlay("interact");
+
+        if (!this.cleared) {
+
+            for (var i = 0; i < 2; i++) {
+                this._spawnLeaf(stage);
+            }
+        }
         safeCall(callback);
-    });
+    };
+
+    this.getOnScreenAssets = function() {
+        return [this.sprite].concat(this._onScreenLeaves)
+    };
+
+    this._spawnLeaf = function(stage) {
+        var leaf = new createjs.Bitmap(this._leafImage);
+        var rand = getRandomInt(0, 3) / 10;
+        var direction = getRandomInt(1, 2);
+
+        switch(direction) {
+            case 1:
+                const startRightX = this.sprite.x + (this._treeImage.width * (0.3 - rand));
+                const startRightY = this.sprite.y - (this._treeImage.height * rand);
+                this._addLeaf(stage, leaf, startRightX, startRightY);
+                createjs.Tween.get(leaf)
+                    .to({
+                        guide: {
+                            path: [
+                                startRightX, startRightY,
+                                this.sprite.x + (this._treeImage.width * (0.7 + rand)), this.sprite.y - (this._treeImage.height * (0.5 + rand)),
+                                canvas.width * (0.9 - rand), canvas.height
+                            ]
+                        }
+                    }, 5000, createjs.Ease.getPowOut(2.5))
+                    .call(function() {
+                        stage.removeChild(leaf);
+                        me._onScreenLeaves.splice(leaf, 1);
+                    });
+                break;
+            case 2:
+                const startLeftX = this.sprite.x - (this._treeImage.width * (0.5 - rand));
+                const startLeftY = this.sprite.y - (this._treeImage.height * rand);
+                this._addLeaf(stage, leaf, startLeftX, startLeftY);
+                createjs.Tween.get(leaf)
+                    .to({
+                        guide: {
+                            path: [
+                                startLeftX, startLeftY,
+                                this.sprite.x - (this._treeImage.width * (1.1 + rand)), this.sprite.y - (this._treeImage.height * (0.5 + rand)),
+                                canvas.width * (0.1 + rand), canvas.height
+                            ]
+                        }
+                    }, 5000, createjs.Ease.getPowOut(2.5))
+                    .call(function() {
+                        stage.removeChild(leaf);
+                        me._onScreenLeaves.splice(leaf, 1);
+                    });
+        }
+    };
+
+    this._addLeaf = function(stage, leaf, x, y) {
+        leaf.x = x;
+        leaf.y = y;
+        stage.addChild(leaf);
+        this._onScreenLeaves.push(leaf);
+    }
 }
