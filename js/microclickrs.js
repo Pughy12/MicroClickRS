@@ -152,7 +152,7 @@ function init() {
     progressText.textAlign = "center";
     progressText.textBaseline = "middle";
     progressText.x = 100;
-    progressText.y = 50;
+    progressText.y = canvas.height - (canvas.height * 0.1);
     stage.addChild(progressText);
     stage.update();
 
@@ -189,6 +189,11 @@ function onLoadProgess() {
  */
 function onLoadFinish() {
 
+    // Adding a title for the game
+    var title = new createjs.Text("MicroClickRS", "bold 120px Times New Roman", "#7A5230");
+    centerOnScreen(title, title.getMeasuredHeight(), title.getMeasuredWidth());
+    stage.addChild(title);
+
     // Create a button to start the game
     var startButton = new createjs.Text("Start Game", "bold 60px Arial", "black");
     var startButtonHitBox = new createjs.Shape();
@@ -198,8 +203,8 @@ function onLoadFinish() {
         .drawRect(0, 0, startButton.getMeasuredWidth(), startButton.getMeasuredHeight());
 
     startButton.hitArea = startButtonHitBox;
-    startButton.x = canvas.width / 2;
-    startButton.y= canvas.height / 2;
+    centerHorizontally(startButton, startButton.getMeasuredWidth());
+    startButton.y = 1000;
 
     // Add button to start game.
     stage.addChild(startButton);
@@ -510,11 +515,20 @@ function notNull(obj) {
 }
 
 function centerOnScreen(visibleObject, height, width) {
-    visibleObject.x = canvas.width / 2;
+    centerVertically(visibleObject, height);
+    centerHorizontally(visibleObject, width);
+}
+
+function centerVertically(visibleObject, height) {
     visibleObject.y = canvas.height / 2;
     visibleObject.regY = height / 2;
+}
+
+function centerHorizontally(visibleObject, width) {
+    visibleObject.x = canvas.width / 2;
     visibleObject.regX = width / 2;
 }
+
 
 function safeCall(callback) {
 
